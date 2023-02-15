@@ -1,31 +1,97 @@
-FROM mcr.microsoft.com/devcontainers/php:0-8.2-bullseye
+FROM alpine:3.17
 
-RUN apt-get update && export DEBIAN_FRONTEND=noninteractive \
-    && apt-get install -y mariadb-client \
-        bash-completion \
-        libfreetype6-dev \
-        libjpeg-dev \
-        libpng-dev \
-        libwebp-dev \
-        libpq-dev \
-        libzip-dev \
-    && apt-get clean -y && rm -rf /var/lib/apt/lists/*
+ARG COMPOSER_HASH=55ce33d7678c5a611085589f1f3ddf8b3c52d662cd01d4ba75c0ee0459970c2200a51f492d557530c71c15d8dba01eae
+ARG DRUSH_VERSION=8.1.18
 
-RUN docker-php-ext-configure gd --enable-gd --with-freetype --with-jpeg --with-webp
+LABEL org.label-schema.schema-version="1.0" \
+  org.label-schema.name="docker-php" \
+  org.label-schema.description="PHP Alpine for Drupal - composer & drush" \
+  maintainer="Alexey Gaydabura <gaydabura@gmail.com>"
 
-# Install php-mysql driver
-RUN docker-php-ext-install -j "$(nproc)" gd mysqli pdo pdo_mysql zip
+ENV PHPRUN_DEPS \
+  curl \
+  git \
+  make \
+  mariadb-client \
+  openssh-client \
+  patch \
+  sqlite
 
-# [Optional] Uncomment this section to install additional OS packages.
-# RUN apt-get update && export DEBIAN_FRONTEND=noninteractive \
-#     && apt-get -y install --no-install-recommends <your-package-list-here>
+RUN apk add --no-cache \
+  php81 \
+  php81-pecl-apcu \
+  php81-pecl-igbinary \
+  php81-bcmath \
+  php81-ctype \
+  php81-curl \
+  php81-dom \
+  php81-gd \
+  php81-gmp \
+  php81-iconv \
+  php81-json \
+  php81-mbstring \
+  php81-opcache \
+  php81-openssl \
+  php81-pcntl \
+  php81-pdo_mysql \
+  php81-pdo_sqlite \
+  php81-phar \
+  php81-session \
+  php81-simplexml \
+  php81-tokenizer \
+  php81-pecl-xdebug \
+  php81-xml \
+  php81-xmlreader \
+  php81-xmlwriter \
+  php81-xmlwriter \
+  php81-fileinfo \
+  php81-zip \
+  php81-pecl-memcached \
+  #php81-imagick \
+  $PHPRUN_DEPS \
+  && ln -fs php81 /usr/bin/php \
+# build extra extensions
+#  && apk add --update --virtual .php-build \
+#  --repository http://dl-cdn.alpinelinux.org/alpine/edge/testing \
+#  php81-dev php81-pear make gcc g++ autoconf pcre-dev \
+#  && sed -ie 's/-n//g' /usr/bin/pecl \
+#  && CFLAGS="-fstack-protector-strong -fpic -fpie -O2" CPPFLAGS="$CFLAGS" LDFLAGS="-Wl,-O1 -Wl,--hash-style=both -pie" pecl install apcu xdebug \
+#  && echo 'extension=apcu.so' > /etc/php81/conf.d/apcu.ini \
+# clean-up
+#  && apk del .php-build \
+#  && rm -fr /tmp/pear /usr/include /usr/share/pear /usr/share/php81 /var/cache/apk/* \
+ && curl -sL -o /usr/bin/drush https://github.com/drush-ops/drush/releases/download/8.1.18/drush.phar \
+ && chmod +x /usr/bin/drush
 
-# [Optional] Uncomment this line to install global node packages.
-# RUN su vscode -c "source /usr/local/share/nvm/nvm.sh && npm install -g <your-package-here>" 2>&1
+# Install composer.
+#COPY --from=composer:1.10.17 /usr/bin/composer /usr/bin/composer
 
-# Stop xdebug spaming
-RUN echo "xdebug.log=/dev/null" >> /usr/local/etc/php/conf.d/xdebug.ini
+RUN php -r "copy('https://getcomposer.org/installer', 'composer-setup.php');" \
+  && php -r "if (hash_file('SHA384', 'composer-setup.php') === getenv('COMPOSER_HASH')) { echo 'Installer verified'; } else { echo 'Installer corrupt'; unlink('composer-setup.php'); } echo PHP_EOL;" \
+  && php composer-setup.php \
+  --install-dir=/usr/bin \
+  --filename=composer \
+  && php -r "unlink('composer-setup.php');"
 
-COPY ./apache.conf /etc/apache2/sites-enabled/apache.conf
-RUN echo "export APACHE_RUN_USER=vscode" >> /etc/apache2/envvars;
-RUN echo "export APACHE_RUN_GROUP=vscode" >> /etc/apache2/envvars;
+
+RUN set -e \
+  && mkdir -p /workspace \
+  && addgroup -g 1000 -S www-skilld \
+  && adduser -u 1000 -D -S -G www-skilld www-data \
+  && apk add --no-cache \
+  php81-fpm
+
+RUN apk add --no-cache --repository http://dl-3.alpinelinux.org/alpine/edge/testing gnu-libiconv
+ENV LD_PRELOAD /usr/lib/preloadable_libiconv.so
+
+COPY php.ini /etc/php81/conf.d/xx-drupal.ini
+COPY php-fpm.conf /etc/php81/
+
+#USER www-data
+WORKDIR /workspace
+VOLUME /workspace
+
+EXPOSE 9000
+
+CMD ["php-fpm81", "-F"]
+

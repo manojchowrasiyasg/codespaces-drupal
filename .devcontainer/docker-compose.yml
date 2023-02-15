@@ -1,21 +1,40 @@
 version: "3"
 services:
-  app:
-    build: ./docker/app
+  php:
+    build: ./docker/php
     volumes:
-      - ../:/workspace:cached
-    ports:
-      - 80:80
-    tty: true
-    environment:
-      APP_ENV: local
-      PHP_EXTENSION_XDEBUG: 1
-      PHP_EXTENSION_PGSQL: 1
-      PHP_EXTENSION_PDO_PGSQL: 1
-      PHP_EXTENSION_GD: 1
-      APACHE_DOCUMENT_ROOT: /workspace/docroot
+      - ../:/workspace:z
+      - ../drush/.drushrc.php:/home/www-data/.drushrc.php:z
+    restart: unless-stopped
     networks:
       - front
+  app:
+    build: ./docker/httpd
+    environment:
+      APACHE_UPSTREAM_NAME: php
+    depends_on:
+      - php
+    volumes_from:
+      - php
+    restart: unless-stopped
+    networks:
+      - front
+  # app:
+  #   build: ./docker/app
+  #   volumes:
+  #     - ../:/workspace:cached
+  #   ports:
+  #     - 8081:80
+  #   tty: true
+  #   environment:
+  #     APP_ENV: local
+  #     PHP_EXTENSION_XDEBUG: 1
+  #     PHP_EXTENSION_PGSQL: 1
+  #     PHP_EXTENSION_PDO_PGSQL: 1
+  #     PHP_EXTENSION_GD: 1
+  #     APACHE_DOCUMENT_ROOT: /workspace/docroot
+  #   networks:
+  #     - front
   db:
     image: percona:5.7.22
     restart: unless-stopped

@@ -1,6 +1,6 @@
 version: "3"
 services:
-  php:
+  app:
     build: ./docker/php
     volumes:
       - ../:/workspace:z
@@ -8,14 +8,14 @@ services:
     restart: unless-stopped
     networks:
       - front
-  app:
+  httpd:
     build: ./docker/httpd
     environment:
-      APACHE_UPSTREAM_NAME: php
+      APACHE_UPSTREAM_NAME: app
     depends_on:
-      - php
+      - app
     volumes_from:
-      - php
+      - app
     restart: unless-stopped
     networks:
       - front

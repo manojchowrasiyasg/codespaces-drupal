@@ -50,22 +50,10 @@ RUN apk add --no-cache \
   #php81-imagick \
   $PHPRUN_DEPS \
   && ln -fs php81 /usr/bin/php \
-# build extra extensions
-#  && apk add --update --virtual .php-build \
-#  --repository http://dl-cdn.alpinelinux.org/alpine/edge/testing \
-#  php81-dev php81-pear make gcc g++ autoconf pcre-dev \
-#  && sed -ie 's/-n//g' /usr/bin/pecl \
-#  && CFLAGS="-fstack-protector-strong -fpic -fpie -O2" CPPFLAGS="$CFLAGS" LDFLAGS="-Wl,-O1 -Wl,--hash-style=both -pie" pecl install apcu xdebug \
-#  && echo 'extension=apcu.so' > /etc/php81/conf.d/apcu.ini \
-# clean-up
-#  && apk del .php-build \
-#  && rm -fr /tmp/pear /usr/include /usr/share/pear /usr/share/php81 /var/cache/apk/* \
  && curl -sL -o /usr/bin/drush https://github.com/drush-ops/drush/releases/download/8.1.18/drush.phar \
  && chmod +x /usr/bin/drush
 
 # Install composer.
-#COPY --from=composer:1.10.17 /usr/bin/composer /usr/bin/composer
-
 RUN php -r "copy('https://getcomposer.org/installer', 'composer-setup.php');" \
   && php -r "if (hash_file('SHA384', 'composer-setup.php') === getenv('COMPOSER_HASH')) { echo 'Installer verified'; } else { echo 'Installer corrupt'; unlink('composer-setup.php'); } echo PHP_EOL;" \
   && php composer-setup.php \

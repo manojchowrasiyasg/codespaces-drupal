@@ -54,6 +54,8 @@ RUN apk add --no-cache \
  && chmod +x /usr/bin/drush
 
 # Install composer.
+#COPY --from=composer:1.10.17 /usr/bin/composer /usr/bin/composer
+
 RUN php -r "copy('https://getcomposer.org/installer', 'composer-setup.php');" \
   && php -r "if (hash_file('SHA384', 'composer-setup.php') === getenv('COMPOSER_HASH')) { echo 'Installer verified'; } else { echo 'Installer corrupt'; unlink('composer-setup.php'); } echo PHP_EOL;" \
   && php composer-setup.php \
@@ -63,7 +65,7 @@ RUN php -r "copy('https://getcomposer.org/installer', 'composer-setup.php');" \
 
 
 RUN set -e \
-  && mkdir -p /workspace \
+  && mkdir -p /var/www \
   && addgroup -g 1000 -S www-skilld \
   && adduser -u 1000 -D -S -G www-skilld www-data \
   && apk add --no-cache \
@@ -76,10 +78,9 @@ COPY php.ini /etc/php81/conf.d/xx-drupal.ini
 COPY php-fpm.conf /etc/php81/
 
 #USER www-data
-WORKDIR /workspace
-VOLUME /workspace
+WORKDIR /var/www/html
+VOLUME /var/www/html
 
 EXPOSE 9000
 
 CMD ["php-fpm81", "-F"]
-

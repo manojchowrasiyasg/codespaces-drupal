@@ -3,7 +3,7 @@ services:
   app:
     build: ./docker/php
     volumes:
-      - ../:/workspace:z
+      - ../:/var/www/html:z
       - ../drush/.drushrc.php:/home/www-data/.drushrc.php:z
     restart: unless-stopped
     networks:
